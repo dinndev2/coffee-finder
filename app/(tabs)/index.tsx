@@ -2,6 +2,7 @@ import { CoffeeCards } from "@/components/CoffeCards";
 import { MapViewPaper } from "@/components/MapViewPaper";
 import { View } from "@/components/Themed";
 import { MOCK_COFFEE_SHOPS } from "@/constants/mock_data";
+import { THEME } from "@/constants/theme"; // Imported central theme
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Slider from "@react-native-community/slider";
@@ -13,6 +14,7 @@ import { cofee_shops } from "../api/coffee_shops";
 
 const DEV = true;
 const FETCH_STEP = 1000;
+
 export interface GoogleRoute {
   routes: {
     distanceMeters: number;
@@ -46,17 +48,6 @@ interface CurrentCoords {
   location: {
     latitude: number;
     longitude: number;
-  };
-}
-
-export interface SelectedShop {
-  placeId: string;
-  location: {
-    latitude: number;
-    longitude: number;
-  };
-  displayName: {
-    text: string;
   };
 }
 
@@ -112,6 +103,7 @@ export default function TabOneScreen() {
       }
     }
   }
+
   const bucket = Math.round(km / FETCH_STEP) * FETCH_STEP;
 
   useEffect(() => {
@@ -134,7 +126,7 @@ export default function TabOneScreen() {
   }, [bucket]);
 
   return (
-    <GestureHandlerRootView style={styles.mainContainer}>
+    <GestureHandlerRootView style={styles.layout.mainContainer}>
       <Modal
         animationType="slide"
         transparent={false}
@@ -150,30 +142,36 @@ export default function TabOneScreen() {
         />
       </Modal>
 
-      <View style={styles.headerSection}>
-        <View style={styles.titleRow}>
-          <View style={{ gap: 2, backgroundColor: "transparent" }}>
-            <Text style={styles.mainTitle}>Hi Din</Text>
-            <Text style={{ fontSize: 15, color: "gray" }}>
+      <View style={styles.header.section}>
+        <View style={styles.header.titleRow}>
+          <View style={styles.header.greetingWrapper}>
+            <Text style={styles.header.mainTitle}>Hi Din</Text>
+            <Text style={styles.header.subTitle}>
               Explore coffee shops around you!
             </Text>
           </View>
-          <View style={styles.iconCircle}>
-            <Ionicons name="cafe" size={20} color="white" />
+          <View style={styles.header.iconCircle}>
+            <Ionicons name="cafe" size={20} color={THEME.colors.white} />
           </View>
         </View>
 
-        <View style={styles.statusBadge}>
-          <Ionicons name="map-outline" size={14} color="#D2691E" />
-          <Text style={styles.statusText}>
+        <View style={styles.header.statusBadge}>
+          <Ionicons
+            name="map-outline"
+            size={14}
+            color={THEME.colors.workHubText}
+          />
+          <Text style={styles.header.statusText}>
             Shops within {(km / 1000).toFixed(1)} km
           </Text>
         </View>
 
-        <View style={styles.sliderContainer}>
-          <View style={styles.sliderHeader}>
-            <Text style={styles.sliderLabel}>Search Radius</Text>
-            <Text style={styles.sliderValue}>{(km / 1000).toFixed(1)} km</Text>
+        <View style={styles.controls.sliderContainer}>
+          <View style={styles.controls.sliderHeader}>
+            <Text style={styles.controls.sliderLabel}>Search Radius</Text>
+            <Text style={styles.controls.sliderValue}>
+              {(km / 1000).toFixed(1)} km
+            </Text>
           </View>
           <Slider
             style={{ width: "100%", height: 40 }}
@@ -182,17 +180,17 @@ export default function TabOneScreen() {
             step={500}
             value={km}
             onSlidingComplete={(value) => setKm(value)}
-            minimumTrackTintColor="#1A1A1A"
-            maximumTrackTintColor="#E0E0E0"
-            thumbTintColor="#1A1A1A"
+            minimumTrackTintColor={THEME.colors.primary}
+            maximumTrackTintColor={THEME.colors.border}
+            thumbTintColor={THEME.colors.primary}
           />
         </View>
       </View>
 
-      <View style={styles.cardsWrapper} pointerEvents="box-none">
+      <View style={styles.layout.cardsWrapper} pointerEvents="box-none">
         {loading ? (
-          <View style={styles.innerLoading}>
-            <ActivityIndicator size="small" color="#1A1A1A" />
+          <View style={styles.state.innerLoading}>
+            <ActivityIndicator size="small" color={THEME.colors.primary} />
           </View>
         ) : (
           <CoffeeCards
@@ -213,85 +211,104 @@ export default function TabOneScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    backgroundColor: "#fcfcfc",
-  },
-  headerSection: {
-    paddingHorizontal: 25,
-    paddingTop: 20,
-    backgroundColor: "transparent",
-    marginBottom: 20,
-  },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
-    backgroundColor: "transparent",
-  },
-  mainTitle: {
-    fontSize: 32,
-    fontWeight: "900",
-    color: "#1A1A1A",
-    letterSpacing: -0.5,
-  },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#1A1A1A",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFF4ED",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    alignSelf: "flex-start",
-    marginBottom: 15,
-  },
-  statusText: {
-    marginLeft: 6,
-    color: "#D2691E",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  sliderContainer: {
-    backgroundColor: "#F5F5F5",
-    padding: 15,
-    borderRadius: 20,
-    marginTop: 5,
-  },
-  sliderHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 5,
-    backgroundColor: "transparent",
-  },
-  sliderLabel: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#666",
-  },
-  sliderValue: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#1A1A1A",
-  },
-  cardsWrapper: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "transparent",
-  },
-  innerLoading: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-});
+const styles = {
+  layout: StyleSheet.create({
+    mainContainer: {
+      flex: 1,
+      backgroundColor: "#fcfcfc",
+    },
+    cardsWrapper: {
+      flex: 1,
+      justifyContent: "flex-end",
+      backgroundColor: "transparent",
+    },
+  }),
+
+  header: StyleSheet.create({
+    section: {
+      paddingHorizontal: THEME.spacing.xxl,
+      paddingTop: THEME.spacing.xl,
+      backgroundColor: "transparent",
+      marginBottom: THEME.spacing.xl,
+    },
+    titleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: THEME.spacing.s,
+      backgroundColor: "transparent",
+    },
+    greetingWrapper: {
+      gap: 2,
+      backgroundColor: "transparent",
+    },
+    mainTitle: {
+      fontSize: 32,
+      fontWeight: "900",
+      color: THEME.colors.primary,
+      letterSpacing: -0.5,
+    },
+    subTitle: {
+      fontSize: 15,
+      color: THEME.colors.secondary,
+    },
+    iconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: THEME.radius.l,
+      backgroundColor: THEME.colors.primary,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    statusBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: THEME.colors.workHub, // Using workHub as a soft background
+      paddingHorizontal: THEME.spacing.m,
+      paddingVertical: THEME.spacing.s,
+      borderRadius: THEME.radius.l,
+      alignSelf: "flex-start",
+      marginBottom: THEME.spacing.l,
+    },
+    statusText: {
+      marginLeft: THEME.spacing.s,
+      color: THEME.colors.workHubText,
+      fontSize: 13,
+      fontWeight: "700",
+    },
+  }),
+
+  controls: StyleSheet.create({
+    sliderContainer: {
+      backgroundColor: THEME.colors.surface,
+      padding: THEME.spacing.l,
+      borderRadius: THEME.radius.l,
+      marginTop: THEME.spacing.xs,
+    },
+    sliderHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: THEME.spacing.xs,
+      backgroundColor: "transparent",
+    },
+    sliderLabel: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: THEME.colors.secondary,
+    },
+    sliderValue: {
+      fontSize: 14,
+      fontWeight: "800",
+      color: THEME.colors.primary,
+    },
+  }),
+
+  state: StyleSheet.create({
+    innerLoading: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+  }),
+};

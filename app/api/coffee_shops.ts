@@ -56,9 +56,9 @@ export async function getRoutes<T>(
   return await response.json();
 }
 
-export const getCoffeeShopInfo = async <T>(shop: string): Promise<T> => {
+export const getCoffeeShopInfo = async <T>(shop_id: string): Promise<T> => {
   const response = await fetch(
-    `https://places.googleapis.com/v1/places/${shop.id}`,
+    `https://places.googleapis.com/v1/places/${shop_id}`,
     {
       method: "GET",
       headers: {
