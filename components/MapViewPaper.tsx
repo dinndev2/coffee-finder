@@ -1,28 +1,25 @@
-import { type SelectedShop } from "@/app/(tabs)";
+import { CoffeeShop } from "@/app/(tabs)";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Dimensions,
   Linking,
   Platform,
   Share,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
 interface MapViewType {
   originLat: number;
   originLng: number;
-  currentRoute: any;
-  selectedShop: SelectedShop;
+  googleMapsUri: string;
+  selectedShop: CoffeeShop;
   setMapModalStatus: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
@@ -30,10 +27,10 @@ export const MapViewPaper = ({
   originLat,
   originLng,
   selectedShop,
-  currentRoute,
+  googleMapsUri,
   setMapModalStatus,
 }: MapViewType) => {
-  const { location, placeId, displayName } = selectedShop;
+  const { location, id, displayName } = selectedShop;
   const { latitude, longitude } = location;
   const { text } = displayName;
 
@@ -49,7 +46,7 @@ export const MapViewPaper = ({
 
   const onShare = async () => {
     try {
-      const key = `place-url-${placeId}`;
+      const key = `place-url-${id}`;
       const cachedUri = await AsyncStorage.getItem(key);
 
       // Use cached URI or fallback to a standard Google Maps link
@@ -67,27 +64,8 @@ export const MapViewPaper = ({
 
   const startNavigation = async () => {
     setNavLoading(true);
-    const key = `place-url-${placeId}`;
-
     try {
-      let targetUri = await AsyncStorage.getItem(key);
-
-      if (!targetUri) {
-        const response = await fetch(
-          `https://places.googleapis.com/v1/places/${placeId}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Goog-Api-Key": `${process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}`,
-              "X-Goog-FieldMask": "googleMapsUri",
-            },
-          },
-        );
-        const data = await response.json();
-        targetUri = data.googleMapsUri;
-        if (targetUri) await AsyncStorage.setItem(key, targetUri);
-      }
+      let targetUri = googleMapsUri;
 
       const scheme = Platform.select({
         ios: `maps:0,0?q=${text}@${latitude},${longitude}&directionsmode=${travelMode.toLowerCase()}`,

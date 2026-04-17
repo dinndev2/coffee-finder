@@ -1,4 +1,6 @@
-import { type CoffeeShop } from "@/app/(tabs)";
+import { GoogleRoute, type CoffeeShop } from "@/app/(tabs)";
+import { getCoffeeShopInfo, getRoutes } from "@/app/api/coffee_shops";
+import { getOrFetch, isWorkFriendly } from "@/constants/helpers";
 import { MOCK_MORE_INFO } from "@/constants/mock_data";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -29,8 +31,7 @@ import {
 import { CoffeCard } from "./CoffeCard";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-
-interface Review {
+export interface Review {
   authorAttribution: { displayName: string; photoUri: string };
   relativePublishTimeDescription: string;
   rating: number;
@@ -40,7 +41,7 @@ interface Review {
 export interface MoreInfo {
   reviews?: Review[];
   editorialSummary?: { text: string };
-  googleMapsUri: string;
+  googleMapsUri: string | any;
   id: number;
 }
 
@@ -50,8 +51,11 @@ interface CoffeeCardsProps {
   originLat: number;
   originLng: number;
   mapModalStatus: boolean;
+  selectedShop: CoffeeShop;
+  setGoogleMapsUri: React.Dispatch<React.SetStateAction<string>>;
   setMapModalStatus: React.Dispatch<React.SetStateAction<boolean>>;
   setCurrentRoute: React.Dispatch<React.SetStateAction<any>>;
+  setSelectedShop: React.Dispatch<React.SetStateAction<CoffeeShop | null>>;
 }
 
 const IS_DEV = true;
@@ -61,12 +65,14 @@ export const CoffeeCards = ({
   originPlaces,
   originLat,
   mapModalStatus,
+  selectedShop,
   originLng,
+  setGoogleMapsUri,
   setMapModalStatus,
+  setSelectedShop,
   setCurrentRoute,
 }: CoffeeCardsProps) => {
   const [modalStatus, setModalStatus] = useState(false);
-  const [selectedShop, setSelectedShop] = useState<CoffeeShop | any>(null);
   const [modalContent, setModalContent] = useState<MoreInfo>();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [routeLoadingId, setRouteLoadingId] = useState<string | null>(null);
@@ -110,7 +116,7 @@ export const CoffeeCards = ({
       if (event.translationY > 120 || event.velocityY > 500) {
         runOnJS(closeModal)();
       } else {
-        translateY.value = withSpring(0, { damping: 20, stiffness: 120 });
+        translateY.value = withSpring(0, { damping: 20, stiffness: 10 });
         backdropOpacity.value = withTiming(1);
       }
     });
@@ -135,16 +141,10 @@ export const CoffeeCards = ({
     opacity: backdropOpacity.value,
   }));
 
-  const isWorkFriendly = (reviews?: Review[]) =>
-    reviews?.some((r) =>
-      /socket|laptop|quiet|signal|wifi|work|outlet/i.test(r.text?.text),
-    ) ?? false;
-
   async function getDirections(destLat: number, destLng: number, id: string) {
     const CACHE_KEY = `route_cache_${id}`;
     setRouteLoadingId(`route-${id}`);
-    setModalStatus(false);
-
+    runOnJS(closeModal)();
     try {
       const cachedData = await AsyncStorage.getItem(CACHE_KEY);
       if (cachedData) {
@@ -153,33 +153,17 @@ export const CoffeeCards = ({
         setModalStatus(false);
         return;
       }
-      const response = await fetch(
-        "https://routes.googleapis.com/directions/v2:computeRoutes",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": `${process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}`,
-            "X-Goog-FieldMask": "routes.duration,routes.distanceMeters",
-          },
-          body: JSON.stringify({
-            origin: {
-              location: {
-                latLng: { latitude: originLat, longitude: originLng },
-              },
-            },
-            destination: {
-              location: { latLng: { latitude: destLat, longitude: destLng } },
-            },
-            routingPreference: "TRAFFIC_AWARE",
-          }),
-        },
+      const data = await getRoutes<GoogleRoute>(
+        originLat,
+        originLng,
+        destLat,
+        destLng,
       );
-      const data = await response.json();
       await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(data));
       setCurrentRoute(data);
       setModalStatus(false);
       setMapModalStatus(true);
+      setGoogleMapsUri(modalContent?.googleMapsUri);
     } catch (error) {
       console.error(error);
     } finally {
@@ -199,28 +183,12 @@ export const CoffeeCards = ({
       }, 150);
       return;
     }
-
     try {
-      const cachedData = await AsyncStorage.getItem(shop.id);
-      if (cachedData) {
-        setModalContent(JSON.parse(cachedData));
-        setModalStatus(true);
-      } else {
-        const response = await fetch(
-          `https://places.googleapis.com/v1/places/${shop.id}`,
-          {
-            method: "GET",
-            headers: {
-              "X-Goog-Api-Key": `${process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}`,
-              "X-Goog-FieldMask": "reviews,editorialSummary,googleMapsUri",
-            },
-          },
-        );
-        const info = await response.json();
-        setModalContent(info);
-        await AsyncStorage.setItem(shop.id, JSON.stringify(info));
-        setModalStatus(true);
-      }
+      const info = await getOrFetch<MoreInfo>(shop.id, async () =>
+        getCoffeeShopInfo<MoreInfo>(shop.id),
+      );
+      setModalContent(info);
+      setModalStatus(true);
     } catch (err) {
       console.error(err);
     } finally {

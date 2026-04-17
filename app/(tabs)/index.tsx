@@ -9,8 +9,10 @@ import * as Location from "expo-location";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Modal, StyleSheet, Text } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { cofee_shops } from "../api/coffee_shops";
 
 const DEV = true;
+const FETCH_STEP = 1000;
 export interface GoogleRoute {
   routes: {
     distanceMeters: number;
@@ -64,14 +66,11 @@ export default function TabOneScreen() {
   const [modalStatus, setModalStatus] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [km, setKm] = useState(1000.0);
+  const [googleMapsUri, setGoogleMapsUri] = useState<string | "">("");
   const [currentCoords, setCurrentCoords] = useState<CurrentCoords>({
     location: { latitude: 0, longitude: 0 },
   });
-  const [selectedShop, setSelectedShop] = useState<SelectedShop>({
-    placeId: "",
-    location: { latitude: 0, longitude: 0 },
-    displayName: { text: "" },
-  });
+  const [selectedShop, setSelectedShop] = useState<CoffeeShop | any>(null);
   const [currentRoute, setCurrentRoute] = useState<GoogleRoute>({
     routes: [{ distanceMeters: 0, duration: "" }],
   });
@@ -81,6 +80,7 @@ export default function TabOneScreen() {
   const getCacheKey = (lat: number, lng: number, radius: number) => {
     return `coffee_${lat.toFixed(3)}_${lng.toFixed(3)}_${radius}`;
   };
+  const [lastFetchKM, setLastFetchKm] = useState(0);
 
   async function fetchAndCache(lat: number, lng: number) {
     setLoading(true);
@@ -98,27 +98,7 @@ export default function TabOneScreen() {
           return;
         }
 
-        const response = await fetch(`${originPlaces}places:searchNearby`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": `${process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}`,
-            "X-Goog-FieldMask":
-              "places.id,places.displayName,places.formattedAddress,places.rating,places.photos,places.location,places.userRatingCount,places.regularOpeningHours",
-          },
-          body: JSON.stringify({
-            includedTypes: ["coffee_shop"],
-            maxResultCount: 1,
-            locationRestriction: {
-              circle: {
-                center: { latitude: lat, longitude: lng },
-                radius: km,
-              },
-            },
-          }),
-        });
-
-        const result = await response.json();
+        const result = await cofee_shops(lat, lng, km);
         const places = result.places || [];
         setCoffeeShops(places);
 
@@ -132,6 +112,7 @@ export default function TabOneScreen() {
       }
     }
   }
+  const bucket = Math.round(km / FETCH_STEP) * FETCH_STEP;
 
   useEffect(() => {
     (async () => {
@@ -145,9 +126,12 @@ export default function TabOneScreen() {
       let userLocation = await Location.getCurrentPositionAsync({});
       const { latitude, longitude } = userLocation.coords;
       setCurrentCoords({ location: { latitude, longitude } });
-      fetchAndCache(latitude, longitude);
+      if (bucket !== lastFetchKM) {
+        fetchAndCache(latitude, longitude);
+        setLastFetchKm(bucket);
+      }
     })();
-  }, [km]);
+  }, [bucket]);
 
   return (
     <GestureHandlerRootView style={styles.mainContainer}>
@@ -162,7 +146,7 @@ export default function TabOneScreen() {
           originLat={currentCoords.location.latitude}
           originLng={currentCoords.location.longitude}
           selectedShop={selectedShop}
-          currentRoute={currentRoute}
+          googleMapsUri={googleMapsUri}
         />
       </Modal>
 
@@ -212,6 +196,7 @@ export default function TabOneScreen() {
           </View>
         ) : (
           <CoffeeCards
+            setGoogleMapsUri={setGoogleMapsUri}
             mapModalStatus={modalStatus}
             coffeeShops={coffeeShops}
             originLat={currentCoords.location.latitude}
@@ -219,6 +204,8 @@ export default function TabOneScreen() {
             originPlaces={originPlaces}
             setMapModalStatus={setModalStatus}
             setCurrentRoute={setCurrentRoute}
+            setSelectedShop={setSelectedShop}
+            selectedShop={selectedShop}
           />
         )}
       </View>
